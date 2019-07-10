@@ -92,9 +92,9 @@ class Message(object):
 
 
 class ServerSentEventsBlueprint(Blueprint):
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         self.subscription_id = None
-        super()
+        super().__init__(*args, **kwargs)
     """
     A :class:`flask.Blueprint` subclass that knows how to publish, subscribe to,
     and stream server-sent events.
