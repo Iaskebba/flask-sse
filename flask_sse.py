@@ -6,7 +6,7 @@ from flask import Blueprint, request, current_app, json, stream_with_context
 from redis import StrictRedis
 import six
 
-__version__ = '0.2.1'
+__version__ = '0.2.2'
 
 
 @six.python_2_unicode_compatible
@@ -92,6 +92,9 @@ class Message(object):
 
 
 class ServerSentEventsBlueprint(Blueprint):
+    def __init__(self):
+        self.subscription_id = None
+        super()
     """
     A :class:`flask.Blueprint` subclass that knows how to publish, subscribe to,
     and stream server-sent events.
@@ -134,7 +137,9 @@ class ServerSentEventsBlueprint(Blueprint):
         A generator of :class:`~flask_sse.Message` objects from the given channel.
         """
         pubsub = self.redis.pubsub()
-        pubsub.subscribe(channel)
+        sub_id = pubsub.subscribe(channel)
+        print(sub_id)
+        self.subscription_id = sub_id
         for pubsub_message in pubsub.listen():
             if pubsub_message['type'] == 'message':
                 msg_dict = json.loads(pubsub_message['data'])
@@ -151,13 +156,21 @@ class ServerSentEventsBlueprint(Blueprint):
 
         @stream_with_context
         def generator():
-            for message in self.messages(channel=channel):
-                yield str(message)
+            try:
+                for message in self.messages(channel=channel):
+                    yield str(message)
+                    print(channel)
+            except:
+                print(self.subscription_id)
 
         return current_app.response_class(
-            generator(),
-            mimetype='text/event-stream',
-        )
+                generator(),
+                mimetype='text/event-stream',
+                headers={
+                    'Transfer-Encoding': 'identity',
+                    'Cache-Control': 'no-cache',
+                    'X-Accel-Buffering': 'no',
+                    })
 
 
 sse = ServerSentEventsBlueprint('sse', __name__)
